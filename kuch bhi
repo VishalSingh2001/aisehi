@@ -1,0 +1,187 @@
+from sys import stdin
+
+reg_dict = {'R0':'000','R1' : '001','R2':'010', 'R3': '011', 'R4': '100', 'R5': '101', 'R6': '110',}
+op_dict = {'mov': '10010', 'add': '10000', 'sub': '10001', 'movreg': '10011', 'ld': '10100', 'st': '10101', 'mul':'10110', 'div':'10111', 'rs': '11000', 'ls': '11001', 'xor':'11010', 'or':'11011', 'and': '11100', 'not':'11101', 'cmp':'11110', 'jmp':'11111', 'jlt': '01100', 'jgt':'01101', 'je':'01111', 'hlt': '01010'}
+var_dict={}
+label_dict={}
+R0=0
+R1=0
+R2=0
+R3=0
+R4=0
+R5=0
+R6=0
+f=open("C:\\Users\\vishal\\Documents\\co_files\\test.txt","r")
+lines=f.readlines()
+
+instructions=[]
+for i in lines:
+    if i==[]:
+        continue
+    lst=[str(x) for x in i.split()]
+    instructions.append(lst)
+flag=list("0000000000000000")
+binary=[]
+
+def dectobin(a):
+        return (bin(int(a))[2:])
+def addtobin(n):
+    if n>255:
+        print("You crossed maximum level of address")
+        quit()
+    k=dectobin(n)
+    x=8-len(str(k))
+    strg=""
+    for i in range(x):
+        strg+='0'
+    strg+=str(k)
+    return strg
+
+def typeB(l1):
+    string = ""
+    string +=op_dict[l1[0]]
+    string +=reg_dict[l1[1]]
+    n = int((l1[2][1:]))
+    if n>255:
+        print("Error : Illegal value of immidiate value")
+        quit()
+    count = len(string)
+    count+=len(str(dectobin(n)))
+    z = 16-count
+    while z>0:
+        string+="0"
+        z -=1
+    string += str(dectobin((n)))
+    binary.append(string)
+    return 
+def typeA(l1):
+    string = ""
+    string += op_dict[l1[0]]
+    string +="00"
+    string+=reg_dict[l1[1]]
+    string+=reg_dict[l1[2]]
+    string+=reg_dict[l1[3]]
+    binary.append(string)
+    return 
+def typeC(l1):
+    string = ""
+    if l1[0]=="mov":
+        string+="10011"
+    else:
+        string += op_dict[l1[0]]
+    string+="00000"
+    
+    if l1[1] in reg_dict:
+        string+=reg_dict[l1[1]]
+    else:
+        string+="111"
+    string+=reg_dict[l1[2]]
+    binary.append(string)
+    return 
+def hlt(l1):
+    string = ""
+    string+=op_dict[l1[0]]
+    string +="00000000000"
+    binary.append(string)
+    return 
+def typeE(l1):
+    string = ""
+    string += op_dict[l1[0]]
+    string+="000"
+    string+=label_dict[l1[1]]
+    binary.append(string)
+    return 
+def typeD(l1):
+    string=""
+    string+=op_dict[l1[0]]
+    string+=reg_dict[l1[1]]
+    string+=var_dict[l1[2]]
+    binary.append(string)
+    return
+
+k=0
+i=0
+while(instructions[i][0]=="var"):
+    k+=1
+    i+=1   
+mb=len(instructions)
+for i in range(mb):
+    if (list(instructions[i][0])[-1]==':'):
+        label=list(instructions[i][0])[:(len(instructions[i][0]))-1]
+        label="".join(label)
+        instructions[i]=instructions[i][1:]
+        label_dict[label]=addtobin(i+1)
+
+
+for i in range(mb):
+    if(instructions[len(instructions)-1]!=["hlt"]):
+        print("Error : No halt given")
+        quit()
+    else:
+        if(instructions[i]==["hlt"] and i<mb-1):
+            print("Error : Multiple hlt given ")
+            quit()
+        if (instructions[i][0]=="var" and i<=k-1):
+            var_dict[instructions[i][1]]=addtobin(len(instructions)-k+i)
+        if(instructions[i][0]=="var" and i>k-1):
+            print("Error : variables declaration must be at the top only")
+            quit()
+    
+    if (i>k-1 and (instructions[i][0] not in op_dict) and (list(instructions[i][0])[-1]!=':')):
+        print("Error : invalid instruction in line "+str(i+1))
+        quit()
+    if(instructions[i][0]=="add" or instructions[i][0]=="sub" or instructions[i][0]=="mul" or instructions[i][0]=="xor" or instructions[i][0]=="or" or instructions[i][0]=="and"):
+            if((instructions[i][1] in reg_dict) and (instructions[i][2] in reg_dict) and (instructions[i][3] in reg_dict)):
+                typeA(instructions[i])
+            else:
+                print("Error : wrong declaration of registors at line "+str(i+1))
+                quit()
+    else:
+        if(instructions[i][0]=="mov" or instructions[i][0]=="ls" or instructions[i][0]=="rs"):
+            if(instructions[i][1] in reg_dict or instructions[i][2] in reg_dict):
+                if (list(instructions[i][2])[0]=='$'):
+                    lst=list("0123456789")
+                    for j in list(instructions[i][2][1:]):
+                        if j not in lst:
+                            print("Error : Illegal immidiate value at line "+str(i+1))
+                            quit()
+                    typeB(instructions[i])
+                elif(instructions[i][2] in reg_dict or instructions[i][2]=="FLAGS"):
+                    typeC(instructions[i])
+                elif((list(instructions[i][2])[0]!='$') and (instructions[i][2] not in reg_dict) and (instructions[i][2]!="FLAGS")):
+                    print("Error : Invalid Instructions at line "+str(i+1))
+                    quit()
+            else:
+                print("Error : Invalid statement at line "+str(i+1))
+                quit()
+        else:
+            if(instructions[i][0]=="div" or instructions[i][0]=="not" or instructions[i][0]=="cmp"):
+                if((instructions[i][1] in reg_dict) and (instructions[i][2] in reg_dict)):
+                    typeC(instructions[i])
+                else:
+                    print("Error : Invalid registor call at line "+str(i+1))
+                    quit()
+            else:
+                if(instructions[i][0]=="ld" or instructions[i][0]=="st"):
+                    if(instructions[i][1] in reg_dict):
+                        if(instructions[i][2] in var_dict):
+                            typeD(instructions[i])
+                        else:
+                            print("Error : Undefined variable at line "+str(i+1))
+                            quit()
+                    else:
+                        print("Error : Invalid registor  at line "+str(i+1))
+                        quit()
+                else:
+                    if(instructions[i][0]=="jmp" or instructions[i][0]=="jlt" or instructions[i][0]=="jgt" or instructions[i][0]=="je"):
+                        if(instructions[i][1] in label_dict):
+                            typeE(instructions[i])
+                        else:
+                            print("Error : Use of invalid Label at line "+str(i+1))
+                            quit()
+                    else:
+                        if(instructions[i][0]=="hlt"):
+                            hlt(instructions[i])
+
+for i in binary:
+    print(i)
